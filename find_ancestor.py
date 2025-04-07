@@ -10,11 +10,17 @@ from lingam.hsic import hsic_test_gamma
 # from hyppo.conditional import KCI
 from causallearn.utils.cit import CIT
 
+import lingam_local
+
 import networkx as nx
 # from causallearn.search.ConstraintBased.PC import pc
 import pandas as pd
 import statsmodels.api as sm
 import time
+
+import itertools
+
+# from hyppo.independence import Hsic
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -104,7 +110,6 @@ def get_ancestor_loop_HSIC(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_a
             if flag_temp:
                 flag_anc = True
                 flag_unf = True
-
                 unfinished_list.remove(c)
             else:            
                 UC = list(set(ancestor_dict[i]).intersection(set(ancestor_dict[j]))) # 交集
@@ -124,6 +129,9 @@ def get_ancestor_loop_HSIC(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_a
 
                         reg = LinearRegression(fit_intercept=False)
 
+                        # x_data_reshaped = x_data.reshape(-1, 1)
+                        # y_data_reshaped = y_data.reshape(-1, 1)
+                        
                         res = reg.fit(data[:, j].reshape(-1, 1), data[:, i]) # x, y
                         coef = res.coef_
                         ri_j = data[:, i] - coef * data[:, j] # ri_j = xi - alpha * xj
@@ -134,41 +142,38 @@ def get_ancestor_loop_HSIC(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_a
 
                         # print(ri_j.shape)
                         
-                        _, pi_j = hsic_test_gamma(ri_j, xj_std, bw_method="mdbs") # xj -> xi
-                        _, pj_i = hsic_test_gamma(rj_i, xi_std, bw_method="mdbs") # xi -> xj
+                        xi_std = (data[:, i] - np.mean(data[:, i])) / np.std(data[:, i])
+                        xj_std = (data[:, j] - np.mean(data[:, j])) / np.std(data[:, j])
+                        
+                        # _, pi_j = Hsic().test(ri_j, xj_std, auto=True) # xj -> xi
+                        # _, pj_i = Hsic().test(rj_i, xi_std, auto=True) # xi -> xj
 
 
-                        if pi_j > i_alpha and pj_i <= i_alpha:    
+                        if pi_j > i_alpha and pj_i <= i_alpha:
                             if True:
                                 ancestor_dict[i].append(j)
                                 unfinished_list.remove(c)
                                 flag_anc = True
                                 flag_unf = True
-                                
                             else:
                                 continue
                         if pi_j <= i_alpha and pj_i > i_alpha:
                             if True:
-                            # if (pi_j / pj_i < p_alpha) or (pj_i / pi_j < p_alpha):
                                 ancestor_dict[j].append(i)
                                 unfinished_list.remove(c)
                                 flag_anc = True
-                                flag_unf = True
-                                
+                                flag_unf = True                                
                             else:
                                 continue
-                                # unfinished_list.append([i, j])
                         if pi_j > i_alpha and pj_i > i_alpha:
-                            # print("ccccc", pi_j, " and ", pj_i)
                             unfinished_list.remove(c)
                             flag_anc = True
                             flag_unf = True
                             # continue
                         if pi_j <= i_alpha and pj_i <= i_alpha:
-                            continue
-                        
+                            continue        
                     else:
-                        if loop_count >= 0:
+                        if loop_count >= 0: ##########################
                             flag_anc = True
                             flag_unf = True
                             unfinished_list.remove(c)
@@ -220,6 +225,9 @@ def get_ancestor_loop_HSIC(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_a
                         res = reg.fit(yi.reshape(-1, 1), yj) # x, y
                         coef = res.coef_
                         rj_i = yj - coef * yi# rj_i = xj - alpha * xi
+                        # _, pi_j = Hsic().test(ri_j, yj_std, auto=True) # yj -> yi
+                        # _, pj_i = Hsic().test(rj_i, yi_std, auto=True) # yi -> yj
+
                         _, pi_j = hsic_test_gamma(ri_j, yj_std, bw_method="mdbs") # yj -> yi
                         _, pj_i = hsic_test_gamma(rj_i, yi_std, bw_method="mdbs") # yi -> yj
 
@@ -252,6 +260,8 @@ def get_ancestor_loop_HSIC(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_a
                         if pi_j <= i_alpha_U and pj_i <= i_alpha_U:
                             continue
                     else:
+                        flag_anc = True
+                        flag_unf = True
                         unfinished_list.remove(c) 
         loop_count += 1
 
@@ -587,6 +597,17 @@ def get_ancestor_loop_KCI_2(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_
     print(record_matrix)
 
 
+def get_ancestor_loop_KCI_3(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_alpha=1):
+    num = len(data[0])
+    record_matrix = np.zeros((num, num))
+    rcd_model = lingam_local.RCD(max_explanatory_num=1, shapiro_alpha=1, cor_alpha=l_alpha, ind_alpha=i_alpha)
+    rcd_model.fit(data)
+    a_dict = rcd_model.ancestors_list_
+    for i in ancestor_dict.keys():
+        ancestor_dict[i] = list(a_dict[i])
+    # print(record_matrix)
+
+
 def final_ancestor(unfinished_list, data, ancestor_dict, i_alpha, i_alpha_U):
     for item in unfinished_list:
         i = item[0]
@@ -655,13 +676,28 @@ def get_anc_dict(Ancestor_list):
 
 
 # b is the subset of a
-def is_subset(a, b):
-    for i in b:
-        if i in a:
-            continue
-        else:
-            return False
-    return True 
+# def is_subset(a, b):
+#     for i in b:
+#         if i in a:
+#             continue
+#         else:
+#             return False
+#     return True 
+
+def is_subset(list1, list2):
+    """
+    Check if list2 is a subset of list1.
+    
+    Args:
+        list1 (list): The potential superset
+        list2 (list): The potential subset
+        
+    Returns:
+        bool: True if list2 is a subset of list1, False otherwise
+    """
+    set1 = set(list1)
+    set2 = set(list2)
+    return set2.issubset(set1)
 
 
 # def get_group(ancestor_dict, sample_size):
@@ -730,74 +766,140 @@ def is_subset(a, b):
 #     return graphs
 
 
-def get_group(ancestor_dict, sample_size):
-    temp = list()
-    for i in ancestor_dict.values():
-        temp.append(sorted(i))
-    # print(temp)
-    temp = sorted(temp, key = lambda i:len(i), reverse=True)
-    # print(temp)
+# def get_group(ancestor_dict, sample_size):
+#     temp = list()
+#     for i in ancestor_dict.values():
+#         temp.append(sorted(i))
+#     # print(temp)
+#     temp = sorted(temp, key = lambda i:len(i), reverse=True)
+#     # print(temp)
 
-    # print(is_subset(temp[0], temp[1]))
+#     # print(is_subset(temp[0], temp[1]))
 
-    record = [0 for i in range(len(temp))]
+#     record = [0 for i in range(len(temp))]
     
-    graphs_0 = list()
-    # print(record)
+#     graphs_0 = list()
+#     # print(record)
+#     for i in range(len(temp)):
+#         for j in range(i + 1, len(temp)):
+#             if(is_subset(temp[i], temp[j])): # 判断temp[j]是否为temp[i]的子集
+#                 record[j] += 1
+#         # print(record)
+
+#     for i in range(len(temp)):
+#         if record[i] == 0:
+#             graphs_0.append(temp[i])
+    
+#     groups = list()
+#     for i in range(len(graphs_0)):
+#         if len(graphs_0[i]) == 1:
+#             for j in range(i + 1, len(graphs_0)):
+#                 groups.append(list(set(graphs_0[i]).union(set(graphs_0[j]))))
+#         else:
+#             groups.append(graphs_0[i])
+# #     if flag == True:    
+# #         for i in range(len(temp)):
+# #             if record[i] == 0:
+# #                 graphs.append(temp[i])
+# #     else:
+# # #         print(temp)
+# #         for i in range(len(temp)):
+# #             if record[i] == 0: # 不是任何人的子集
+# #                 if len(temp[i]) >= 2:
+# #                     graphs.append(temp[i])
+# #                 else:
+# #                     for j in range(len(graphs)):
+# #                         graphs[j] += temp[i]
+# #                         graphs[j] = list(set(graphs[j]))
+
+# #             # if record[i] == 0 and len(temp[i]) >= 2: 
+# #             #     graphs.append(temp[i])
+# #             # else:
+# #             #     if record[i] == 0:
+# #             #         for j in range(len(graphs)):
+# #             #             graphs[j] += temp[i]
+# #             #             graphs[j] = list(set(graphs[j]))
+
+# #     print(graphs)
+#     # if len(graphs) == 0 or len(graphs) == 1:
+#     # # if len(graphs) == 0:
+        
+#     #     if sample_size / len(ancestor_dict) < 2:
+#     #         graphs = []
+#     #         for i in range(len(ancestor_dict)):
+#     #             for j in range(i+1, len(ancestor_dict)):
+#     #                 graphs.append([i, j])
+#     #     else:
+#     #         graphs = [[i for i in range(len(ancestor_dict))]]      
+#     print(groups)
+
+#     print("******************")
+#     return groups
+
+
+def get_group(ancestor_dict, sample_size):
+    """
+    Process groups from an ancestor dictionary and generate combined groups based on subset relationships.
+    
+    Args:
+        ancestor_dict (dict): Dictionary containing ancestor relationships
+        sample_size (int): Size of the sample to process
+        
+    Returns:
+        list: List of processed groups
+    """
+    # Convert dictionary values to sorted lists
+    temp = [sorted(group) for group in ancestor_dict.values()]
+    
+    # Sort by length in descending order
+    temp = sorted(temp, key=len, reverse=True)
+    
+    # Initialize record to track subset relationships
+    record = [0] * len(temp)
+    
+    # Find subset relationships
     for i in range(len(temp)):
         for j in range(i + 1, len(temp)):
-            if(is_subset(temp[i], temp[j])): # 判断temp[j]是否为temp[i]的子集
-                record[j] += 1
-        # print(record)
-
+            if record[i] != 0 or record[j] != 0:
+                continue
+            else:
+                if is_subset(temp[i], temp[j]):
+                    record[j] += 1
+    
+    # Collect groups with no supersets (record[i] == 0)
+    # graphs_0 = [temp[i] for i in range(len(temp)) if record[i] == 0]
+    # graphs_0_1 = [temp[i] for i in range(len(temp)) if record[i] == 0]
+    groups_0 = []
+    groups_0_1 = []
     for i in range(len(temp)):
         if record[i] == 0:
-            graphs_0.append(temp[i])
-    
-    groups = list()
-    for i in range(len(graphs_0)):
-        if len(graphs_0[i]) == 1:
-            for j in range(i + 1, len(graphs_0)):
-                groups.append(list(set(graphs_0[i]).union(set(graphs_0[j]))))
-        else:
-            groups.append(graphs_0[i])
-#     if flag == True:    
-#         for i in range(len(temp)):
-#             if record[i] == 0:
-#                 graphs.append(temp[i])
-#     else:
-# #         print(temp)
-#         for i in range(len(temp)):
-#             if record[i] == 0: # 不是任何人的子集
-#                 if len(temp[i]) >= 2:
-#                     graphs.append(temp[i])
-#                 else:
-#                     for j in range(len(graphs)):
-#                         graphs[j] += temp[i]
-#                         graphs[j] = list(set(graphs[j]))
+            groups_0.append(temp[i])
+        if record[i] == 0 and len(temp[i]) == 1:
+            groups_0_1.append(temp[i])
 
-#             # if record[i] == 0 and len(temp[i]) >= 2: 
-#             #     graphs.append(temp[i])
-#             # else:
-#             #     if record[i] == 0:
-#             #         for j in range(len(graphs)):
-#             #             graphs[j] += temp[i]
-#             #             graphs[j] = list(set(graphs[j]))
+    groups = []
+    groups_set = []
+    for pair in itertools.product(groups_0, groups_0_1):
+        if pair[0] != pair[1] and set(pair[0] + pair[1]) not in groups_set:
+            groups_set.append(set(pair[0] + pair[1]))
+            groups.append(pair[0] + pair[1])
+            # print(i[0] + i[1])
 
-#     print(graphs)
-    # if len(graphs) == 0 or len(graphs) == 1:
-    # # if len(graphs) == 0:
-        
-    #     if sample_size / len(ancestor_dict) < 2:
-    #         graphs = []
-    #         for i in range(len(ancestor_dict)):
-    #             for j in range(i+1, len(ancestor_dict)):
-    #                 graphs.append([i, j])
+
+    # # Generate final groups
+    # groups = []
+    # for i in range(len(graphs_0)):
+    #     if len(graphs_0[i]) == 1:
+    #         # For single-element groups, combine with all subsequent groups
+    #         for j in range(i + 1, len(graphs_0)):
+    #             combined = list(set(graphs_0[i]).union(set(graphs_0[j])))
+    #             groups.append(combined)
     #     else:
-    #         graphs = [[i for i in range(len(ancestor_dict))]]      
+    #         # Add multi-element groups as is
+    #         groups.append(graphs_0[i])
+    
     print(groups)
-
-    print("******************")
+    
     return groups
 
 
@@ -808,7 +910,7 @@ def get_res(data, groups, B, ancestor_list):
     N_num = len(M)
     
     for g in groups:
-        # print("g =", g )
+        print("g =", g )
         if len(g) == 1 or len(g) == 0:
             continue
         else:
@@ -822,20 +924,25 @@ def get_res(data, groups, B, ancestor_list):
             model = lingam.DirectLiNGAM()
             model.fit(X)
             m = model.adjacency_matrix_
+
+            # print(m)
             
             for i in range(len(m)):
                 for j in range(len(m)):
                     visit[g[i]][g[j]] += 1
                     if(m[i][j] != 0):
+                        # print(m[i][j])
                         M[g[i]][g[j]] += m[i][j]
-    for i in range(len(M)):
-        for j in range(len(M)):
-            if(M[i][j]):
-                M[i][j] /= visit[i][j]
+                    # print(M)
+    # for i in range(len(M)):
+    #     for j in range(len(M)):
+    #         if(M[i][j]):
+    #             M[i][j] /= visit[i][j]
 
+    # print("final", M)
     # print("******************")
     ###### based on wald test
-    time_0 = time.time()
+    time_0 = time.process_time()
     M_temp_1 = copy.deepcopy(M)
     temp_loop = find_loop(M_temp_1)
     # count = 0
@@ -845,7 +952,7 @@ def get_res(data, groups, B, ancestor_list):
     
     
     ###### based on ancestors
-    time_1 = time.time()
+    time_1 = time.process_time()
     M_temp_2 = copy.deepcopy(M)
     # temp_loop = find_loop(M_temp_2)
     # count = 0
@@ -862,14 +969,14 @@ def get_res(data, groups, B, ancestor_list):
         # print("a")
 
     ###### based on value
-    time_2 = time.time()
+    time_2 = time.process_time()
     M_temp_3 = copy.deepcopy(M)
     temp_loop = find_loop(M_temp_3)
     # count = 0
     while(len(temp_loop)):
         M_temp_3 = value_eliminate_loop(M_temp_3, temp_loop)
         temp_loop = find_loop(M_temp_3)
-    time_3 = time.time()
+    time_3 = time.process_time()
 
     return [M_temp_1, M_temp_2, M_temp_3, (time_1 - time_0), (time_2 - time_1), (time_3 - time_2)]
 
@@ -909,7 +1016,7 @@ def get_res_no_ancestor(data, groups, B):
 
     # print("******************")
     ###### based on wald test
-    time_0 = time.time()
+    time_0 = time.process_time()
     M_temp_1 = copy.deepcopy(M)
     temp_loop = find_loop(M)
     # count = 0
@@ -936,14 +1043,14 @@ def get_res_no_ancestor(data, groups, B):
         # print("a")
 
     ###### based on value
-    time_2 = time.time()
+    time_2 = time.process_time()
     M_temp_3 = copy.deepcopy(M)
     temp_loop = find_loop(M_temp_3)
     # count = 0
     while(len(temp_loop)):
         M_temp_3 = value_eliminate_loop(M_temp_3, temp_loop)
         temp_loop = find_loop(M_temp_3)
-    time_3 = time.time()
+    time_3 = time.process_time()
 
     return [M_temp_1, M_temp_3, (time_2 - time_0), (time_3 - time_2)]
 
@@ -1433,3 +1540,198 @@ def wald_eliminate_loop(G, temp_loop, data):
     G[max_edge[0]][max_edge[1]] = 0
 
     return G
+
+
+
+def get_ancestor_loop_KCI_with_map(data, ancestor_dict, group, l_alpha, i_alpha, i_alpha_U, p_alpha=1):
+    num = len(data[0])
+    unfinished_list = make_unfinished(data)
+
+    flag_anc = True
+    flag_unf = True
+
+    loop_count = 0
+
+    inverse_map = dict()
+    index_count = 0
+    for key in ancestor_dict:
+        inverse_map[key] = index_count
+        index_count += 1
+    
+    while flag_anc or flag_unf:
+        flag_anc = False
+        flag_unf = False
+
+        unfinished_list_temp = copy.deepcopy(unfinished_list)
+
+        for c in unfinished_list_temp:
+            
+            i = c[0]
+            j = c[1]
+            i_map = group[i]
+            j_map = group[j]
+            
+            flag_temp = False
+
+            flag_temp = quick_ancestor(i_map, j_map, ancestor_dict)
+            if flag_temp:
+                flag_anc = True
+                flag_unf = True
+
+                unfinished_list.remove(c)
+            else:            
+                UC = list(set(ancestor_dict[i_map]).intersection(set(ancestor_dict[j_map]))) # 交集
+                if len(UC) == 0:                    
+                    if is_linear(data[:, i], data[:, j], l_alpha):
+                        # xi_std = data[:, i]
+                        # xj_std = data[:, j]
+                        # xi_std = (data[:, i] - np.mean(data[:, i])) / np.std(data[:, i])
+                        # xj_std = (data[:, j] - np.mean(data[:, j])) / np.std(data[:, j])
+                        # ri_j = get_residual(xi_std, xj_std) # ri_j = xi - alpha * xj
+                        # rj_i = get_residual(xj_std, xi_std) # rj_i = xj - alpha * xi
+
+                        xi_std = data[:, i]
+                        xj_std = data[:, j]
+
+                        reg = LinearRegression(fit_intercept=False)
+
+                        res = reg.fit(data[:, j].reshape(-1, 1), data[:, i]) # x, y
+                        coef = res.coef_
+                        ri_j = data[:, i] - coef * data[:, j] # ri_j = xi - alpha * xj
+
+                        res = reg.fit(data[:, i].reshape(-1, 1), data[:, j]) # x, y
+                        coef = res.coef_
+                        rj_i = data[:, j] - coef * data[:, i]# rj_i = xj - alpha * xi
+                        
+                        data_set = np.array([ri_j, xj_std, rj_i, xi_std])
+                        
+                        kci_obj = CIT(data_set.T, "kci")
+                        # pi_j = kci_obj(ri_j, xj_std, [])
+                        # pj_i = kci_obj(rj_i, xi_std, [])
+                        pi_j = kci_obj(0, 1, [])
+                        pj_i = kci_obj(2, 3, [])
+
+                        # print("(", i, ", ", j, ")", "pi_j, pj_i:", pi_j, "----", pj_i)
+                        # _, pi_j = hsic_test_gamma(ri_j, xj_std, bw_method="mdbs") # xj -> xi
+                        # _, pj_i = hsic_test_gamma(rj_i, xi_std, bw_method="mdbs") # xi -> xj
+
+                        if pi_j > i_alpha and pj_i <= i_alpha:
+                            if True:
+                                ancestor_dict[i_map].append(j_map)
+                                unfinished_list.remove(c)
+                                flag_anc = True
+                                flag_unf = True
+                            else:
+                                continue
+                        if pi_j <= i_alpha and pj_i > i_alpha:
+                            if True:
+                                ancestor_dict[j_map].append(i_map)
+                                unfinished_list.remove(c)
+                                flag_anc = True
+                                flag_unf = True                                
+                            else:
+                                continue
+                        if pi_j > i_alpha and pj_i > i_alpha:
+                            unfinished_list.remove(c)
+                            flag_anc = True
+                            flag_unf = True
+                            # continue
+                        if pi_j <= i_alpha and pj_i <= i_alpha:
+                            continue        
+                    else:
+                        if loop_count >= 0: ##########################
+                            flag_anc = True
+                            flag_unf = True
+                            unfinished_list.remove(c)
+                        else:
+                            continue
+            
+                else:
+                    X = list()
+                    for index in UC:
+                        X.append(data[:, inverse_map[index]])
+                    
+                    X = np.array(X).T
+                    
+                    reg = LinearRegression(fit_intercept=False)
+                    res = reg.fit(X, data[:, i])
+                    coef = res.coef_
+                    # coef = np.linalg.lstsq(X, data[:, i], rcond=None) # X, y
+                    yi = data[:, i] - np.dot(coef, X.T)
+                    # yi = data[:, i] - reg.predict(X)
+
+                    res = reg.fit(X, data[:, j])
+                    coef = res.coef_
+                    # coef = np.linalg.lstsq(X, data[:, j], rcond=None) # X, y
+                    yj = data[:, j] - np.dot(coef, X.T)
+                    # yj = data[:, j] - reg.predict(X)
+                    
+                    # if not is_independent(yi, yj, 0.01):
+
+                    if is_linear(yi, yj, l_alpha):
+                        # yi_std = yi
+                        # yj_std = yj
+                        # yi_std = (yi - np.mean(yi)) / np.std(yi)
+                        # yj_std = (yj - np.mean(yj)) / np.std(yj)
+                        # ri_j = get_residual(yi_std, yj_std) # ri_j = yi - alpha * yj
+                        # rj_i = get_residual(yj_std, yi_std) # rj_i = yj - alpha * yi
+
+                        yi_std = yi
+                        yj_std = yj
+
+                        reg = LinearRegression(fit_intercept=False)
+
+                        res = reg.fit(yj.reshape(-1, 1), yi) # x, y
+                        coef = res.coef_
+                        ri_j = yi - coef * yj # ri_j = xi - alpha * xj
+
+                        res = reg.fit(yi.reshape(-1, 1), yj) # x, y
+                        coef = res.coef_
+                        rj_i = yj - coef * yi# rj_i = xj - alpha * xi
+                        # _, pi_j = hsic_test_gamma(ri_j, yj_std, bw_method="mdbs") # yj -> yi
+                        # _, pj_i = hsic_test_gamma(rj_i, yi_std, bw_method="mdbs") # yi -> yj
+
+                        
+                        data_set = np.array([ri_j, yj_std, rj_i, yi_std])
+                        kci_obj = CIT(data_set.T, "kci")
+                        pi_j = kci_obj(0, 1, [])
+                        pj_i = kci_obj(2, 3, [])
+                        # pi_j = kci_obj(ri_j, yj_std, [])
+                        # pj_i = kci_obj(rj_i, yi_std, [])
+                        # print("(", i, ", ", j, ")", "pi_j, pj_i:", pi_j, "----", pj_i)
+#                         _, pi_j = Hsic().test(ri_j, xj_std) # xj -> xi
+#                         _, pj_i = Hsic().test(rj_i, xi_std) # xi -> xj
+                        
+
+                        if pi_j > i_alpha_U and pj_i <= i_alpha_U:
+                            if True:
+                            # if (pi_j / pj_i < p_alpha) or (pj_i / pi_j < p_alpha):
+                                ancestor_dict[i_map].append(j_map)
+                                unfinished_list.remove(c)
+                                flag_anc = True
+                                flag_unf = True                                
+                                
+                            else:
+                                continue
+                        if pi_j <= i_alpha_U and pj_i > i_alpha_U:
+                            if True:    
+                            # if (pi_j / pj_i < p_alpha) or (pj_i / pi_j < p_alpha):
+                                ancestor_dict[j_map].append(i_map)
+                                unfinished_list.remove(c)
+                                flag_anc = True
+                                flag_unf = True                                
+                                
+                            else:
+                                continue
+                        if pi_j > i_alpha_U and pj_i > i_alpha_U:
+                            # unfinished_list.remove(c)
+                            # flag_anc = True
+                            # flag_unf = True
+                            continue
+                        if pi_j <= i_alpha_U and pj_i <= i_alpha_U:
+                            continue
+                    else:
+                        flag_anc = True
+                        flag_unf = True
+                        unfinished_list.remove(c) 
+        loop_count += 1

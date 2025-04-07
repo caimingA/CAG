@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # experiment_set = [(20, 19, 1)]
     # experiment_set = [(30, 29, 1)]
     # experiment_set = [(40, 39, 1)]
-    experiment_set = [(10, 5, 1), (10, 9, 1)]
+    experiment_set = [(10, 5, 1), (10, 9, 1), (10, 10, 2), (10, 12, 2), (10, 14, 2), (10, 16, 2), (10, 17, 2), (10, 24, 3)]
     # experiment_set = [(20, 19, 1)]
     # experiment_set = [(30, 29, 1)]
     # experiment_set = [(40, 39, 1)]

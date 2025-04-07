@@ -89,9 +89,9 @@ def evalute_L_performance(res_list, l_alpha, i_alpha):
 
     SHD = (np.sum(adding_list) + np.sum(inverse_list) + np.sum(deleting_list)) / dag_size
     
-    precision = TP / TP_FP
-    recall = TP / TP_FN
-    F = 2*precision*recall / (precision + recall)
+    precision = TP / TP_FP if TP_FP != 0 else 0
+    recall = TP / TP_FN if TP_FN != 0 else 0
+    F = 2*precision*recall / (precision + recall) if (precision + recall) != 0 else 0
 
     # ancestor_err = 1 - (np.sum(count_list) / (dag_size * node_num))
 
@@ -225,3 +225,99 @@ def differ_from_ancestor(true_ancestor_dict, ancestor_dict, M):
     # add_err_count = plus_add_err_count + minus_add_err_count
     # del_err_count = plus_del_err_count + minus_del_err_count
     # return  plus_add_err_count+plus_del_err_count, minus_add_err_count+minus_del_err_count
+
+
+def evalute_performance_real(res_list, node_num, l_alpha, i_alpha):
+    dag_size = 1
+    DAG_count = 0
+    DAG_count_1 = 0
+    DAG_count_2 = 0
+    DAG_count_3 = 0
+
+    adding_list = res_list[0]
+    deleting_list = res_list[1]
+    inverse_list = res_list[2]
+    corr_list = res_list[3]
+    count_list = res_list[4]
+    time_list = res_list[5]
+    after_count_list = res_list[6]
+    true_count_sum_list = res_list[7]
+    no_estimated_ancestor_flags = res_list[8]
+
+    print(
+        np.sum(corr_list) 
+        + np.sum(deleting_list) 
+        + np.sum(adding_list) 
+        + np.sum(inverse_list)
+        )
+    
+    for i in range(dag_size):
+        if (adding_list + deleting_list + inverse_list) <= 0:
+            DAG_count += 1
+        if (adding_list + deleting_list + inverse_list) <= 1:
+            DAG_count_1 += 1
+        if (adding_list + deleting_list + inverse_list) <= 2:
+            DAG_count_2 += 1    
+        if (adding_list + deleting_list + inverse_list) <= 3:
+            DAG_count_3 += 1
+
+    TP = corr_list
+    TP_FP = TP + np.sum(adding_list) + np.sum(inverse_list)
+    TP_FN = TP + np.sum(deleting_list) + np.sum(inverse_list)
+    # TP_FN = TP + np.sum(deleting_list)
+
+    SHD = (np.sum(adding_list) + np.sum(inverse_list) + np.sum(deleting_list)) / dag_size
+
+    precision = TP / TP_FP if TP_FP != 0 else 0
+    recall = TP / TP_FN if TP_FN != 0 else 0
+    F = 2*precision*recall / (precision + recall) if (precision + recall) != 0 else 0
+
+    ancestor_err = (np.sum(count_list) / np.sum(true_count_sum_list))
+    after_ancestor_err = (np.sum(after_count_list) / np.sum(true_count_sum_list))
+
+    execute_time = np.sum(time_list)
+
+    no_estimated_ancestor_count = np.sum(no_estimated_ancestor_flags)
+    return [l_alpha, i_alpha, precision, recall, F, SHD, DAG_count, DAG_count_1, DAG_count_2, DAG_count_3, execute_time, ancestor_err, after_ancestor_err, no_estimated_ancestor_count]
+
+
+def evalute_L_performance_real(res_list, l_alpha, i_alpha):
+    dag_size = 1
+    DAG_count = 0
+    DAG_count_1 = 0
+    DAG_count_2 = 0
+    DAG_count_3 = 0
+
+
+    adding_list = res_list[0]
+    deleting_list = res_list[1]
+    inverse_list = res_list[2]
+    corr_list = res_list[3]
+    # count_list = res_list[:, 3]
+    time_list = res_list[4]
+
+    for i in range(dag_size):
+        if (adding_list + deleting_list + inverse_list) <= 0:
+            DAG_count += 1
+        if (adding_list + deleting_list + inverse_list) <= 1:
+            DAG_count_1 += 1
+        if (adding_list + deleting_list + inverse_list) <= 2:
+            DAG_count_2 += 1    
+        if (adding_list + deleting_list + inverse_list) <= 3:
+            DAG_count_3 += 1
+
+    TP = corr_list
+    TP_FP = TP + adding_list + inverse_list
+    TP_FN = TP + deleting_list + inverse_list
+    # TP_FN = TP + np.sum(deleting_list)
+
+    SHD = (adding_list + inverse_list + deleting_list) / dag_size
+    
+    precision = TP / TP_FP if TP_FP != 0 else 0
+    recall = TP / TP_FN if TP_FN != 0 else 0
+    F = 2*precision*recall / (precision + recall) if (precision + recall) != 0 else 0
+    # ancestor_err = 1 - (np.sum(count_list) / (dag_size * node_num))
+
+    execute_time = time_list
+
+    return [l_alpha, i_alpha, precision, recall, F, SHD, DAG_count, DAG_count_1, DAG_count_2, DAG_count_3, execute_time, 0]

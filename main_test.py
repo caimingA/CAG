@@ -33,16 +33,18 @@ def read_excel_dir(dir_path):
 
 
 if __name__ == '__main__':
+    experiment_set = [(10, 5, 1), (10, 9, 1), (10, 12, 2), (10, 16, 2), (10, 24, 3)]
+
     # alpha_l_list = [0.5]
     # alpha_i_list = [0.5]
-    alpha_l_list = [0.01, 0.01, 0.01, 0.01, 0.5]
-    alpha_i_list = [0.3, 0.5, 0.001, 0.001, 0.001]
+    alpha_l_list = [0.01] * len(experiment_set)
+    alpha_i_list = [0.1] * len(experiment_set)
     # alpha_p = [0.01, 0.1, 1]
     alpha_p = [1]
 
     # experiment_set = [(40, 39, 1)]
     # experiment_set = [(10, 9, 1)]
-    experiment_set = [(10, 9, 1)]
+    # experiment_set = [(10, 5, 1), (10, 9, 1), (10, 10, 2), (10, 12, 2), (10, 14, 2), (10, 15, 3), (10, 16, 2), (10, 17, 2), (10, 24, 3), (20, 19, 1), (30, 29, 1), (40, 39, 1)]
     # experiment_set = [(10, 9, 1), (5, 4, 1), (10, 5, 1)]
     # experiment_set = [(10, 5, 1), (10, 9, 1), (20, 19, 1)]
     # experiment_set = [(40, 39, 1)]
@@ -65,6 +67,7 @@ if __name__ == '__main__':
         dir_list.append(dir_path) 
     t = time.strftime("%Y-%m-%d", time.localtime())
 
+    print(dir_list)
     count = 0
     for dir_path in dir_list:
         print(dir_path)
@@ -87,7 +90,7 @@ if __name__ == '__main__':
         B_list = np.array(B_list)
         s_count = 0
         for s in range(2, len(res_list[0])):
-            if len(res_list[0][s]) <= 11:
+            if len(res_list[0][s]) <= 100:
                 print("-------" + str(len(res_list[0][s])) + "-------")
                 name = str(e[0]) + "_" + str(e[1]) + "_" + str(e[2]) + "_" + str(len(res_list[0][s])) + "_" + t
                 # print(name)
@@ -98,7 +101,7 @@ if __name__ == '__main__':
                 # print(DAG_list.shape, " + ", B_list.shape, " + ", x_list.shape)
                 run_test.run(name, DAG_list, x_list, B_list, [alpha_l_list[count]], [alpha_i_list[count]], alpha_p)
                 s_count += 1
-    count += 1
+        count += 1
 
 
 

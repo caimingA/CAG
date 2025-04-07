@@ -1,4 +1,4 @@
-import data_generator
+# import data_generator
 import find_ancestor
 import CAPA
 import myRCD
@@ -12,7 +12,7 @@ import time
 from multiprocessing import Pool
 import copy
 
-process_num = 18
+process_num = 14
 
 
 def execute_HSIC_once(experiment_set):
@@ -30,16 +30,21 @@ def execute_HSIC_once(experiment_set):
     adding_err_edge_1 = 0
     deleting_err_edge_1 = 0
     corr_edge_1 = 0
+    inverse_err_edge_1 = 0
 
     adding_err_edge_2 = 0
     deleting_err_edge_2 = 0
     corr_edge_2 = 0
+    inverse_err_edge_2 = 0
 
     adding_err_edge_3 = 0
     deleting_err_edge_3 = 0
     corr_edge_3 = 0
+    inverse_err_edge_3 = 0
     
-    start_time = time.time()
+    no_estimated_ancestor_flag = 1
+    
+    start_time = time.process_time()
     ancestor_dict = dict()
     for i in range(node_num):
         ancestor_dict[i] = []
@@ -54,7 +59,7 @@ def execute_HSIC_once(experiment_set):
     groups = find_ancestor.get_group(AA_dict, sample_size)
 
     M_res = find_ancestor.get_res(data, groups, B, ancestor_dict)
-    end_time = time.time()
+    end_time = time.process_time()
     
     M_1 = M_res[0]
     M_2 = M_res[1]
@@ -63,48 +68,75 @@ def execute_HSIC_once(experiment_set):
     time_M_1 = M_res[3]
     time_M_2 = M_res[4]
     time_M_3 = M_res[5]
-    
-    
-    for i in range(len(M_1)):
-        for j in range(len(M_1)):
-            if(M_1[i][j]):
-                if(DAG_test[i][j]):
+        
+    for i in range(1, node_num):
+        for j in range(0, i):
+            if(DAG_test[i][j]):
+                if(M_1[i][j]): # 正确的边
                     corr_edge_1 += 1
-                else:
-                    adding_err_edge_1 += 1
-            else:
-                if(DAG_test[i][j]):
-                    deleting_err_edge_1 += 1
-
-    for i in range(len(M_2)):
-        for j in range(len(M_2)):
-            if(M_2[i][j]):
-                if(DAG_test[i][j]):
+                else: # 没有的边或者反的边
+                    if(M_1[j][i]):
+                        inverse_err_edge_1 += 1
+                    else:
+                        deleting_err_edge_1 += 1
+                
+                if(M_2[i][j]): # 正确的边
                     corr_edge_2 += 1
-                else:
-                    adding_err_edge_2 += 1
-            else:
-                if(DAG_test[i][j]):
-                    deleting_err_edge_2 += 1
-
-
-    for i in range(len(M_3)):
-        for j in range(len(M_3)):
-            if(M_3[i][j]):
-                if(DAG_test[i][j]):
+                else: # 没有的边或者反的边
+                    if(M_2[j][i]):
+                        inverse_err_edge_2 += 1
+                    else:
+                        deleting_err_edge_2 += 1
+                
+                if(M_3[i][j]): # 正确的边
                     corr_edge_3 += 1
-                else:
-                    adding_err_edge_3 += 1
+                else: # 没有的边或者反的边
+                    if(M_3[j][i]):
+                        inverse_err_edge_3 += 1
+                    else:
+                        deleting_err_edge_3 += 1
             else:
-                if(DAG_test[i][j]):
-                    deleting_err_edge_3 += 1
+                if(M_1[i][j]): # 多余的边
+                    adding_err_edge_1 += 1
+                else: # 正确的或者反的边
+                    if(M_1[j][i]):
+                        adding_err_edge_1 += 1
+                    else:
+                        # corr_edge_1 += 1
+                        pass
+                
+                if(M_2[i][j]): # 多余的边
+                    adding_err_edge_2 += 1
+                else: # 正确的或者反的边
+                    if(M_2[j][i]):
+                        adding_err_edge_2 += 1
+                    else:
+                        # corr_edge_2 += 1
+                        pass
+
+                if(M_3[i][j]): # 多余的边
+                    adding_err_edge_3 += 1
+                else: # 正确的或者反的边
+                    if(M_3[j][i]):
+                        adding_err_edge_3 += 1
+                    else:
+                        # corr_edge_3 += 1
+                        pass
+
     # print(M)
     true_ancestor_dict = find_ancestor.get_true_ancestor(DAG_test)
-    count = find_ancestor.list_diff(true_ancestor_dict, ancestor_dict)
+    count, true_count_sum = find_ancestor.list_diff(true_ancestor_dict, ancestor_dict)
+
+    after_ancestor_dict_1 = find_ancestor.get_true_ancestor(M_1)
+    count_1, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_1)
+    after_ancestor_dict_2 = find_ancestor.get_true_ancestor(M_2)
+    count_2, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_2)
+    after_ancestor_dict_3 = find_ancestor.get_true_ancestor(M_3)
+    count_3, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_3)
     return [
-        [adding_err_edge_1, deleting_err_edge_1, corr_edge_1, count, (end_time - start_time - time_M_2 - time_M_3)],
-        [adding_err_edge_2, deleting_err_edge_2, corr_edge_2, count, (end_time - start_time - time_M_1 - time_M_3)],
-        [adding_err_edge_3, deleting_err_edge_3, corr_edge_3, count, (end_time - start_time - time_M_1 - time_M_2)]
+        [adding_err_edge_1, deleting_err_edge_1, inverse_err_edge_1, corr_edge_1, count, (end_time - start_time - time_M_2 - time_M_3), count_1, true_count_sum, no_estimated_ancestor_flag],
+        [adding_err_edge_2, deleting_err_edge_2, inverse_err_edge_2, corr_edge_2, count, (end_time - start_time - time_M_1 - time_M_3), count_2, true_count_sum, no_estimated_ancestor_flag],
+        [adding_err_edge_3, deleting_err_edge_3, inverse_err_edge_3, corr_edge_3, count, (end_time - start_time - time_M_1 - time_M_2), count_3, true_count_sum, no_estimated_ancestor_flag]
         ]
 
 
@@ -165,12 +197,13 @@ def execute_KCI_once(experiment_set):
     
     no_estimated_ancestor_flag = 1
 
-    start_time = time.time()
+    start_time = time.process_time()
     ancestor_dict = dict()
     for i in range(node_num):
         ancestor_dict[i] = []
 
-    find_ancestor.get_ancestor_loop_KCI(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U)
+    # find_ancestor.get_ancestor_loop_KCI(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U)
+    find_ancestor.get_ancestor_loop_KCI_3(data, ancestor_dict, l_alpha, i_alpha, i_alpha_U)
 
     AA_dict = dict()
     for i in range(node_num):
@@ -178,11 +211,12 @@ def execute_KCI_once(experiment_set):
         if len(ancestor_dict[i]) != 0:
             no_estimated_ancestor_flag = 0
 
+    # print(ancestor_dict)
     # ancestor_dict_list.append(AA_dict)   
     groups = find_ancestor.get_group(AA_dict, sample_size)
 
     M_res = find_ancestor.get_res(data, groups, B, ancestor_dict)
-    end_time = time.time()
+    end_time = time.process_time()
     
     M_1 = M_res[0]
     M_2 = M_res[1]
@@ -321,7 +355,7 @@ def execute_K_once(experiment_set):
     corr_edge_3 = 0
     inverse_err_edge_3 = 0
     
-    start_time = time.time()
+    start_time = time.process_time()
     
     # ancestor_dict = dict()
 
@@ -331,10 +365,12 @@ def execute_K_once(experiment_set):
         AA_dict[i] = [i] + true_ancestor_dict[i]
         
     groups = find_ancestor.get_group(AA_dict, sample_size)
-        
+    # print(groups) 
         # print(graphs)
     M_res = find_ancestor.get_res(data, groups, B, true_ancestor_dict)
-    end_time = time.time()
+    end_time = time.process_time()
+
+    # print(M_res)
     
     M_1 = M_res[0]
     M_2 = M_res[1]
@@ -462,13 +498,13 @@ def execute_L_once(experiment_set):
     corr_edge = 0
     inverse_err_edge = 0
     
-    start_time = time.time()
+    start_time = time.process_time()
 
     model_L = lingam.DirectLiNGAM()
     model_L.fit(data)
     m_L = model_L.adjacency_matrix_
 
-    end_time = time.time()
+    end_time = time.process_time()
 
     for i in range(1, node_num):
         for j in range(0, i):
@@ -659,12 +695,13 @@ def execute_RCD_once(experiment_set):
 
     no_estimated_ancestor_flag = 1
     
-    start_time = time.time()
+    start_time = time.process_time()
     ancestor_dict = dict()
     for i in range(node_num):
         ancestor_dict[i] = []
 
-    find_ancestor.get_ancestor_loop_KCI(data, ancestor_dict, l_alpha, i_alpha, i_alpha)
+    # find_ancestor.get_ancestor_loop_KCI(data, ancestor_dict, l_alpha, i_alpha, i_alpha)
+    find_ancestor.get_ancestor_loop_KCI_3(data, ancestor_dict, l_alpha, i_alpha,  i_alpha)
 
     AA_dict = dict()
     for i in range(node_num):
@@ -678,7 +715,7 @@ def execute_RCD_once(experiment_set):
     ancestor_dict = myRCD.change_list_to_set(ancestor_dict)
 
     M_res_rcd = myRCD.get_res(data, B, ancestor_dict, i_alpha)
-    end_time = time.time()
+    end_time = time.process_time()
     
     M_1 = M_res_rcd[0]
     M_2 = M_res_rcd[1]
@@ -826,13 +863,13 @@ def execute_CAPA_once(experiment_set):
     # corr_edge_3 = 0
     # inverse_err_edge_3 = 0
     
-    start_time = time.time()
+    start_time = time.process_time()
 
     # ancestor_dict_list.append(AA_dict)   
     groups = CAPA.CAPA(data, sigma, pVal)
 
     M_res = find_ancestor.get_res_no_ancestor(data, groups, B)
-    end_time = time.time()
+    end_time = time.process_time()
     
     M_1 = M_res[0]
     M_2 = M_res[1]
@@ -970,7 +1007,7 @@ def execute_test(DAG_list, data_list, B_list, l_alpha, i_alpha, i_alpha_U, p_alp
 #         count_list = list()
         true_ancestor_dict = find_ancestor.get_true_ancestor(DAG_test)
         
-        find_ancestor.get_ancestor_loop_HSIC(data_list[t], ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_alpha)
+        find_ancestor.get_ancestor_loop_KCI_3(data_list[t], ancestor_dict, l_alpha, i_alpha, i_alpha_U, p_alpha)
 #         get_ancestor_loop_3(data_list[t], ancestor_dict, l_alpha, i_alpha, i_alpha_U)
         
         count_list.append(find_ancestor.list_diff(true_ancestor_dict, ancestor_dict))
@@ -1016,3 +1053,221 @@ def execute_test(DAG_list, data_list, B_list, l_alpha, i_alpha, i_alpha_U, p_alp
             diff_err_list_3 += np.array(err_3)
     
     return [diff_err_list_1, diff_err_list_2, diff_err_list_3]
+
+
+def execute_CAPA_CAG_once(experiment_set):
+    DAG_test = experiment_set[0]
+    data = experiment_set[1]
+    B = experiment_set[2]
+    l_alpha = experiment_set[3]
+    i_alpha = experiment_set[4]
+    i_alpha_U = experiment_set[5]
+    p_alpha = experiment_set[6]
+
+    sigma = experiment_set[7]
+    pVal = experiment_set[8]
+
+    node_num = len(DAG_test)
+    sample_size = len(experiment_set[1])
+    
+    adding_err_edge_1 = 0
+    deleting_err_edge_1 = 0
+    corr_edge_1 = 0
+    inverse_err_edge_1 = 0
+
+    adding_err_edge_2 = 0
+    deleting_err_edge_2 = 0
+    corr_edge_2 = 0
+    inverse_err_edge_2 = 0
+
+    adding_err_edge_3 = 0
+    deleting_err_edge_3 = 0
+    corr_edge_3 = 0
+    inverse_err_edge_3 = 0
+
+    no_estimated_ancestor_flag = 1
+
+    start_time = time.process_time()
+
+    # ancestor_dict_list.append(AA_dict)   
+    groups = CAPA.CAPA(data, sigma, pVal)
+    group_new = list()
+    
+    ancestor_dict = dict()
+    for i in range(node_num):
+            ancestor_dict[i] = []
+
+    for g in groups:
+        node_num_temp = len(g)
+        print("CAPA g: ", g)
+        if node_num_temp == 0:
+            pass
+        elif node_num_temp == 1:
+            groups_temp = g
+            group_new.append(groups_temp) 
+        else:
+            ancestor_dict_temp = dict()
+            for i in range(node_num_temp):
+                ancestor_dict_temp[g[i]] = []
+            data_temp = data[:, g]
+
+            for key, value in ancestor_dict_temp.items():
+                if len(ancestor_dict[key]) == 0:
+                    ancestor_dict[key] = ancestor_dict_temp[key]
+                else:
+                    ancestor_dict[key] = list(set(ancestor_dict[key] + ancestor_dict_temp[key]))
+
+            
+            find_ancestor.get_ancestor_loop_KCI_with_map(data_temp, ancestor_dict_temp, g, l_alpha, i_alpha, i_alpha_U)
+            AA_dict_temp = dict()
+            for i in range(node_num_temp):
+                AA_dict_temp[g[i]] = [g[i]] + ancestor_dict_temp[g[i]]
+                if len(ancestor_dict_temp[g[i]]) != 0:
+                    no_estimated_ancestor_flag = 0
+
+            groups_temp = find_ancestor.get_group(AA_dict_temp, sample_size)
+
+            group_new += groups_temp
+        # node_num_temp = len(g)
+        # ancestor_dict_temp = dict()
+        # for i in range(node_num_temp):
+        #     ancestor_dict_temp[g[i]] = []
+        # data_temp = data[:, g]
+
+        # for key, value in ancestor_dict_temp.items():
+        #     if len(ancestor_dict[key]) == 0:
+        #         ancestor_dict[key] = ancestor_dict_temp[key]
+        #     else:
+        #         ancestor_dict[key] = list(set(ancestor_dict[key] + ancestor_dict_temp[key]))
+
+            
+        # find_ancestor.get_ancestor_loop_KCI_with_map(data_temp, ancestor_dict_temp, g, l_alpha, i_alpha, i_alpha_U)
+        # AA_dict_temp = dict()
+        # for i in range(node_num_temp):
+        #     AA_dict_temp[g[i]] = [g[i]] + ancestor_dict_temp[g[i]]
+        #     if len(ancestor_dict_temp[g[i]]) != 0:
+        #         no_estimated_ancestor_flag = 0
+
+        # groups_temp = find_ancestor.get_group(AA_dict_temp, sample_size)
+
+        # group_new += groups_temp
+    
+    print("groups: ", group_new)
+    
+    M_res = find_ancestor.get_res(data, group_new, B, ancestor_dict)
+    end_time = time.process_time()
+    
+    M_1 = M_res[0]
+    M_2 = M_res[1]
+    M_3 = M_res[2]
+
+    time_M_1 = M_res[3]
+    time_M_2 = M_res[4]
+    time_M_3 = M_res[5]
+        
+    for i in range(1, node_num):
+        for j in range(0, i):
+            if(DAG_test[i][j]):
+                if(M_1[i][j]): # 正确的边
+                    corr_edge_1 += 1
+                else: # 没有的边或者反的边
+                    if(M_1[j][i]):
+                        inverse_err_edge_1 += 1
+                    else:
+                        deleting_err_edge_1 += 1
+                
+                if(M_2[i][j]): # 正确的边
+                    corr_edge_2 += 1
+                else: # 没有的边或者反的边
+                    if(M_2[j][i]):
+                        inverse_err_edge_2 += 1
+                    else:
+                        deleting_err_edge_2 += 1
+                
+                if(M_3[i][j]): # 正确的边
+                    corr_edge_3 += 1
+                else: # 没有的边或者反的边
+                    if(M_3[j][i]):
+                        inverse_err_edge_3 += 1
+                    else:
+                        deleting_err_edge_3 += 1
+            else:
+                if(M_1[i][j]): # 多余的边
+                    adding_err_edge_1 += 1
+                else: # 正确的或者反的边
+                    if(M_1[j][i]):
+                        adding_err_edge_1 += 1
+                    else:
+                        # corr_edge_1 += 1
+                        pass
+                
+                if(M_2[i][j]): # 多余的边
+                    adding_err_edge_2 += 1
+                else: # 正确的或者反的边
+                    if(M_2[j][i]):
+                        adding_err_edge_2 += 1
+                    else:
+                        # corr_edge_2 += 1
+                        pass
+
+                if(M_3[i][j]): # 多余的边
+                    adding_err_edge_3 += 1
+                else: # 正确的或者反的边
+                    if(M_3[j][i]):
+                        adding_err_edge_3 += 1
+                    else:
+                        # corr_edge_3 += 1
+                        pass
+
+    # print(M)
+    true_ancestor_dict = find_ancestor.get_true_ancestor(DAG_test)
+    count, true_count_sum = find_ancestor.list_diff(true_ancestor_dict, ancestor_dict)
+
+    after_ancestor_dict_1 = find_ancestor.get_true_ancestor(M_1)
+    count_1, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_1)
+    after_ancestor_dict_2 = find_ancestor.get_true_ancestor(M_2)
+    count_2, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_2)
+    after_ancestor_dict_3 = find_ancestor.get_true_ancestor(M_3)
+    count_3, _ = find_ancestor.list_diff(true_ancestor_dict, after_ancestor_dict_3)
+    return [
+        [adding_err_edge_1, deleting_err_edge_1, inverse_err_edge_1, corr_edge_1, count, (end_time - start_time - time_M_2 - time_M_3), count_1, true_count_sum, no_estimated_ancestor_flag],
+        [adding_err_edge_2, deleting_err_edge_2, inverse_err_edge_2, corr_edge_2, count, (end_time - start_time - time_M_1 - time_M_3), count_2, true_count_sum, no_estimated_ancestor_flag],
+        [adding_err_edge_3, deleting_err_edge_3, inverse_err_edge_3, corr_edge_3, count, (end_time - start_time - time_M_1 - time_M_2), count_3, true_count_sum, no_estimated_ancestor_flag]
+        ]
+
+        
+
+def execute_CAPA_CAG(DAG_list, data_list, B_list, l_alpha, i_alpha, i_alpha_U, p_alpha=1, sigma=2, pVal=0.05):
+    dag_size = len(DAG_list)
+
+    node_num = len(DAG_list[0])
+    
+    experiment_list = list()
+    for t in range(dag_size):
+        experiment_list.append([DAG_list[t], data_list[t], B_list[t], l_alpha, i_alpha, i_alpha_U, p_alpha, sigma, pVal])
+    # print(experiment_list)
+    with Pool(process_num) as p:
+        res_list = p.map(execute_CAPA_CAG_once, experiment_list)
+    
+    res_list = np.array(res_list)
+
+    res_1 = res_list[:, 0, : ]
+    res_2 = res_list[:, 1, : ]
+    res_3 = res_list[:, 2, : ]
+
+    # print("-----------D-----------")
+    # print(res_1) 
+
+    evaluation_list_1 = evaluation.evalute_performance(res_1, node_num, l_alpha, i_alpha)
+    evaluation_list_2 = evaluation.evalute_performance(res_2, node_num, l_alpha, i_alpha)
+    evaluation_list_3 = evaluation.evalute_performance(res_3, node_num, l_alpha, i_alpha)
+
+    
+    
+    return [evaluation_list_1, evaluation_list_2, evaluation_list_3]
+
+        
+
+
+    
+

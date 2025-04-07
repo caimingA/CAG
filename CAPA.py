@@ -2,7 +2,7 @@ import copy
 from random import randint
 import random
 
-import data_generator as ge
+# import data_generator as ge
 from causallearn.utils.cit import CIT
 import time
 import draw

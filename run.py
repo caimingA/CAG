@@ -46,34 +46,34 @@ def run(name, DAG_list, data_list, B_list, alpha_l_list, alpha_i_list, alpha_p =
     
     for i in alpha_l_list:
 
-        res = execute_refined.execute_CAPA(DAG_list, data_list, B_list, 0, i)
-        res_CAPA_list_0_1.append(res[0])
-        res_CAPA_list_0_2.append(res[1])
-        res_CAPA_list_0_3.append(res[2])
+        # res = execute_refined.execute_CAPA(DAG_list, data_list, B_list, 0, i)
+        # res_CAPA_list_0_1.append(res[0])
+        # res_CAPA_list_0_2.append(res[1])
+        # res_CAPA_list_0_3.append(res[2])
 
-        res = execute_refined.execute_CAPA(DAG_list, data_list, B_list, 1, i)
-        res_CAPA_list_1_1.append(res[0])
-        res_CAPA_list_1_2.append(res[1])
-        res_CAPA_list_1_3.append(res[2])
+        # res = execute_refined.execute_CAPA(DAG_list, data_list, B_list, 1, i)
+        # res_CAPA_list_1_1.append(res[0])
+        # res_CAPA_list_1_2.append(res[1])
+        # res_CAPA_list_1_3.append(res[2])
 
         res = execute_refined.execute_CAPA(DAG_list, data_list, B_list, 2, i)
         res_CAPA_list_2_1.append(res[0])
         res_CAPA_list_2_2.append(res[1])
         res_CAPA_list_2_3.append(res[2])
 
-        for j in alpha_i_list:
-            for k in alpha_p:
-                print(i, ", ", j, ", ", k)
-                res = execute_refined.execute_KCI(DAG_list, data_list, B_list, i, j, j, k)
-                # res = execute_refined.execute_HSIC(DAG_list, data_list, B_list, i, j, j, k)
-                res_list_1.append(res[0])
-                res_list_2.append(res[1])
-                res_list_3.append(res[2])
+        # for j in alpha_i_list:
+        #    for k in alpha_p:
+        #        print(i, ", ", j, ", ", k)
+        #        res = execute_refined.execute_HSIC(DAG_list, data_list, B_list, i, j, j, k)
+        #        # res = execute_refined.execute_HSIC(DAG_list, data_list, B_list, i, j, j, k)
+        #        res_list_1.append(res[0])
+        #        res_list_2.append(res[1])
+        #        res_list_3.append(res[2])
 
-                res_RCD = execute_refined.execute_RCD(DAG_list, data_list, B_list, i, j)
-                res_RCD_list_1.append(res_RCD[0])
-                res_RCD_list_2.append(res_RCD[1])
-                res_RCD_list_3.append(res_RCD[2])
+        #        res_RCD = execute_refined.execute_RCD(DAG_list, data_list, B_list, i, j)
+        #        res_RCD_list_1.append(res_RCD[0])
+        #        res_RCD_list_2.append(res_RCD[1])
+        #        res_RCD_list_3.append(res_RCD[2])
     # print(res_list)
     # print(res_RCD_list)
     
